@@ -5,16 +5,67 @@ import Mascot from "../../components/Mascot";
 import Card from "../../components/Card";
 import StatusBadge from "../../components/StatusBadge";
 import SensorRow from "../../components/SensorRow";
+import ConnectionBanner from "../../components/ConnectionBanner";
+import StaleIndicator from "../../components/StaleIndicator";
+import LoadingState from "../../components/LoadingState";
+import ErrorState from "../../components/ErrorState";
+import { useDeviceStatus } from "../../hooks/useDeviceStatus";
+import { useConnection } from "../../hooks/useConnection";
 
-const demoReadings = [
-  { label: "Temp", value: "29.6", unit: "°C", calibrated: true },
-  { label: "Humidity", value: "66.5", unit: "%", calibrated: true },
-  { label: "MQ135", value: "422", unit: "ADC", calibrated: false },
-  { label: "MG811", value: "0.34", unit: "V", calibrated: false },
-];
+function minutesAgo(date: Date): number {
+  return Math.round((Date.now() - date.getTime()) / 60000);
+}
+
+function formatSensorReadings(sensors: Record<string, { value: number | null; unit: string; calibrated?: boolean }>) {
+  const entries = Object.entries(sensors);
+  return entries.map(([key, sensor]) => ({
+    label: key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()).replace(/ C$/, "").replace(/ Pct$/, "").replace(/ Adc$/, "").replace(/ V$/, ""),
+    value: sensor.value !== null ? String(sensor.value) : null,
+    unit: sensor.unit,
+    calibrated: sensor.calibrated,
+  }));
+}
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { status, loading, error, stale, isDemo, lastUpdated, refresh } = useDeviceStatus();
+  const connection = useConnection();
+
+  const staleMinutes = stale && lastUpdated
+    ? minutesAgo(lastUpdated)
+    : null;
+
+  if (loading && !status) {
+    return (
+      <SafeAreaView className="flex-1 bg-background" edges={["top"]}>
+        <LoadingState message="Loading device status..." />
+      </SafeAreaView>
+    );
+  }
+
+  if (error && !status) {
+    return (
+      <SafeAreaView className="flex-1 bg-background" edges={["top"]}>
+        <ErrorState
+          title="Cannot reach device"
+          message={error}
+          action="Retry"
+          onRetry={refresh}
+        />
+      </SafeAreaView>
+    );
+  }
+
+  const sensors = status?.sensors ?? {};
+  const readings = formatSensorReadings(sensors);
+  const forecast = status?.forecast_status;
+  const mascotState = isDemo
+    ? "welcome"
+    : stale
+      ? "device_disconnected"
+      : forecast?.input_ready
+        ? "good_conditions"
+        : "idle";
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top"]}>
@@ -38,11 +89,20 @@ export default function HomeScreen() {
               Air quality companion
             </Text>
           </View>
-          <StatusBadge status="demo" label="Demo data" />
+          <StatusBadge
+            status={isDemo ? "demo" : stale ? "stale" : "good"}
+            label={isDemo ? "Demo data" : stale ? "Stale" : "Live"}
+          />
         </View>
 
+        <ConnectionBanner status={connection.status} />
+
+        {staleMinutes !== null && (
+          <StaleIndicator lastUpdated={`${staleMinutes} min ago`} />
+        )}
+
         <View className="items-center py-4">
-          <Mascot state="welcome" size="large" />
+          <Mascot state={mascotState} size="large" />
         </View>
 
         <Card>
@@ -57,16 +117,18 @@ export default function HomeScreen() {
               className="text-secondary-text text-xs"
               style={{ fontFamily: "Inter_400Regular" }}
             >
-              Demo values
+              {isDemo ? "Demo values" : status?.timestamp ? new Date(status.timestamp).toLocaleTimeString() : ""}
             </Text>
           </View>
-          <SensorRow readings={demoReadings} />
-          <Text
-            className="text-secondary-text text-[11px] mt-2"
-            style={{ fontFamily: "Inter_400Regular" }}
-          >
-            Gas sensor values are raw (uncalibrated). Not verified concentrations.
-          </Text>
+          <SensorRow readings={readings} />
+          {Object.values(sensors).some((s) => s.calibrated === false) && (
+            <Text
+              className="text-secondary-text text-[11px] mt-2"
+              style={{ fontFamily: "Inter_400Regular" }}
+            >
+              Gas sensor values are raw (uncalibrated). Not verified concentrations.
+            </Text>
+          )}
         </Card>
 
         <Card>
@@ -111,14 +173,15 @@ export default function HomeScreen() {
               className="text-secondary-text text-sm text-center mt-2"
               style={{ fontFamily: "Inter_400Regular" }}
             >
-              Still learning the pattern from recent readings. Need 24 hourly
-              samples before predictions are available.
+              {forecast?.input_ready
+                ? "Forecast available"
+                : "Still learning the pattern from recent readings. Need 24 hourly samples before predictions are available."}
             </Text>
             <Text
               className="text-secondary-text text-xs mt-1"
               style={{ fontFamily: "Inter_400Regular" }}
             >
-              2 / 24 samples collected
+              {forecast ? `${forecast.hourly_samples} / ${forecast.required_hourly_samples} samples collected` : ""}
             </Text>
           </View>
         </Card>
