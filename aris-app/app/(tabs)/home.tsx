@@ -12,10 +12,6 @@ import ErrorState from "../../components/ErrorState";
 import { useDeviceStatus } from "../../hooks/useDeviceStatus";
 import { useConnection } from "../../hooks/useConnection";
 
-function minutesAgo(date: Date): number {
-  return Math.round((Date.now() - date.getTime()) / 60000);
-}
-
 function formatSensorReadings(sensors: Record<string, { value: number | null; unit: string; calibrated?: boolean }>) {
   const entries = Object.entries(sensors);
   return entries.map(([key, sensor]) => ({
@@ -24,6 +20,10 @@ function formatSensorReadings(sensors: Record<string, { value: number | null; un
     unit: sensor.unit,
     calibrated: sensor.calibrated,
   }));
+}
+
+function minutesAgo(date: Date): number {
+  return Math.round((Date.now() - date.getTime()) / 60000);
 }
 
 export default function HomeScreen() {
@@ -74,7 +74,7 @@ export default function HomeScreen() {
         contentContainerClassName="px-4 pb-8 gap-4"
         showsVerticalScrollIndicator={false}
       >
-        <View className="flex-row items-center justify-between mt-2">
+        <View className="flex-row items-center justify-between mt-3">
           <View>
             <Text
               className="text-ink text-2xl"
@@ -101,11 +101,11 @@ export default function HomeScreen() {
           <StaleIndicator lastUpdated={`${staleMinutes} min ago`} />
         )}
 
-        <View className="items-center py-4">
+        <View className="items-center py-2">
           <Mascot state={mascotState} size="large" />
         </View>
 
-        <Card>
+        <Card elevated>
           <View className="flex-row items-center justify-between mb-3">
             <Text
               className="text-ink text-base"
@@ -123,7 +123,7 @@ export default function HomeScreen() {
           <SensorRow readings={readings} />
           {Object.values(sensors).some((s) => s.calibrated === false) && (
             <Text
-              className="text-secondary-text text-[11px] mt-2"
+              className="text-secondary-text text-[11px] mt-3"
               style={{ fontFamily: "Inter_400Regular" }}
             >
               Gas sensor values are raw (uncalibrated). Not verified concentrations.
@@ -167,7 +167,7 @@ export default function HomeScreen() {
           >
             Forecast
           </Text>
-          <View className="bg-surface-lavender rounded-md p-3 items-center">
+          <View className="bg-surface-lavender rounded-xl p-4 items-center">
             <Mascot state="data_uncertain" size="small" />
             <Text
               className="text-secondary-text text-sm text-center mt-2"
@@ -175,19 +175,26 @@ export default function HomeScreen() {
             >
               {forecast?.input_ready
                 ? "Forecast available"
-                : "Still learning the pattern from recent readings. Need 24 hourly samples before predictions are available."}
+                : "Still learning from recent readings. Need 24 hourly samples before predictions."}
             </Text>
             <Text
               className="text-secondary-text text-xs mt-1"
               style={{ fontFamily: "Inter_400Regular" }}
             >
-              {forecast ? `${forecast.hourly_samples} / ${forecast.required_hourly_samples} samples collected` : ""}
+              {forecast ? `${forecast.hourly_samples} / ${forecast.required_hourly_samples} samples` : ""}
             </Text>
           </View>
         </Card>
 
         <Pressable
-          className="bg-lavender rounded-lg p-4 items-center active:bg-lavender-dark"
+          className="bg-lavender rounded-2xl p-4 items-center active:bg-lavender-dark"
+          style={{
+            shadowColor: "#7C5CFC",
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.25,
+            shadowRadius: 12,
+            elevation: 5,
+          }}
           onPress={() => router.push("/ask-aris")}
           accessibilityRole="button"
           accessibilityLabel="Ask ARIS a question"
