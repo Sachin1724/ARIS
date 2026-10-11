@@ -2,14 +2,14 @@
 
 ## Current
 - **Milestone**: 1 — ARIS App v1
-- **Phase**: Not started
-- **Next**: Phase 1 — Project Scaffold and Foundation
+- **Phase**: 1 — Project Scaffold and Foundation (planned)
+- **Next**: `/gsd-execute-phase 1`
 
 ## Phase Status
 
 | Phase | Name | Status |
 |-------|------|--------|
-| 1 | Project Scaffold and Foundation | ○ Pending |
+| 1 | Project Scaffold and Foundation | ◆ Planned |
 | 2 | Design System and Shared Components | ○ Pending |
 | 3 | Home Screen with Demo Data | ○ Pending |
 | 4 | Core Screens | ○ Pending |
