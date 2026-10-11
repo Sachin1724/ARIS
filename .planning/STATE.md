@@ -2,8 +2,8 @@
 
 ## Current
 - **Milestone**: 1 — ARIS App v1
-- **Phase**: 5 — REST Client and WebSocket (complete)
-- **Next**: Phase 6 — BLE Provisioning (gated on firmware)
+- **Phase**: 7 — Forecast, History and External Context (complete)
+- **Next**: Phase 8 — Text Assistant
 
 ## Phase Status
 
@@ -15,8 +15,8 @@
 | 4 | Core Screens | ✓ Complete |
 | 5 | REST Client and WebSocket | ✓ Complete |
 | 6 | BLE Provisioning | ○ Pending (gated) |
-| 7 | Forecast, History and External Context | ○ Pending |
+| 7 | Forecast, History and External Context | ✓ Complete |
 | 8 | Text Assistant | ○ Pending |
 | 9 | Security, Accessibility, Testing and Release | ○ Pending |
 
-Progress: ██████░░░░ 56%
+Progress: ████████░░ 78%
