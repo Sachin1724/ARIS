@@ -2,8 +2,8 @@
 
 ## Current
 - **Milestone**: 1 — ARIS App v1
-- **Phase**: 7 — Forecast, History and External Context (complete)
-- **Next**: Phase 8 — Text Assistant
+- **Phase**: 8 — Text Assistant (complete)
+- **Next**: Phase 9 — Security, Accessibility, Testing and Release
 
 ## Phase Status
 
@@ -16,7 +16,7 @@
 | 5 | REST Client and WebSocket | ✓ Complete |
 | 6 | BLE Provisioning | ○ Pending (gated) |
 | 7 | Forecast, History and External Context | ✓ Complete |
-| 8 | Text Assistant | ○ Pending |
+| 8 | Text Assistant | ✓ Complete |
 | 9 | Security, Accessibility, Testing and Release | ○ Pending |
 
-Progress: ████████░░ 78%
+Progress: █████████░ 89%

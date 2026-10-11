@@ -8,11 +8,64 @@ import { colors } from "../../constants/tokens";
 import { apiClient, ApiClientError } from "../../services/api-client";
 import { mockAssistantResponse } from "../../services/mock-data";
 
+interface Evidence {
+  label: string;
+  value: string;
+  unit: string;
+  timestamp?: string;
+}
+
 interface Message {
   role: "user" | "assistant";
   text: string;
-  evidence?: { label: string; value: string; unit: string }[];
+  evidence?: Evidence[];
+  reasoning?: string;
   caveats?: string[];
+}
+
+function ReasoningSection({ reasoning }: { reasoning: string }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <View className="mt-2 pt-2 border-t border-border">
+      <Pressable
+        onPress={() => setExpanded(!expanded)}
+        className="flex-row items-center gap-1 active:opacity-70"
+        accessibilityRole="button"
+        accessibilityLabel={expanded ? "Hide reasoning" : "Show reasoning"}
+      >
+        <Text
+          className="text-lavender text-xs"
+          style={{ fontFamily: "Inter_500Medium" }}
+        >
+          {expanded ? "Hide reasoning" : "Why I say this"}
+        </Text>
+      </Pressable>
+      {expanded && (
+        <Text
+          className="text-secondary-text text-xs mt-1 leading-4"
+          style={{ fontFamily: "Inter_400Regular" }}
+        >
+          {reasoning}
+        </Text>
+      )}
+    </View>
+  );
+}
+
+function EvidenceRow({ item }: { item: Evidence }) {
+  const timeLabel = item.timestamp
+    ? ` (${new Date(item.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })})`
+    : "";
+
+  return (
+    <Text
+      className="text-secondary-text text-xs"
+      style={{ fontFamily: "Inter_400Regular" }}
+    >
+      {item.label}: {item.value} {item.unit}{timeLabel}
+    </Text>
+  );
 }
 
 export default function AskArisScreen() {
@@ -41,14 +94,20 @@ export default function AskArisScreen() {
           role: "assistant",
           text: response.answer,
           evidence: response.evidence,
+          reasoning: response.reasoning,
           caveats: response.caveats,
         },
       ]);
     } catch (err) {
-      const message = err instanceof ApiClientError ? err.message : "Failed to get answer";
+      let text = "Could not get an answer.";
+      if (err instanceof ApiClientError) {
+        if (err.isTimeout) text = "Request timed out. Check device connection.";
+        else if (err.isNotFound) text = "Assistant not available on this device.";
+        else text = `Could not get an answer: ${err.message}`;
+      }
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", text: `Could not get an answer: ${message}` },
+        { role: "assistant", text },
       ]);
     } finally {
       setLoading(false);
@@ -104,19 +163,17 @@ export default function AskArisScreen() {
               >
                 {msg.text}
               </Text>
+
               {msg.evidence && msg.evidence.length > 0 && (
                 <View className="mt-2 pt-2 border-t border-border gap-1">
                   {msg.evidence.map((e, j) => (
-                    <Text
-                      key={j}
-                      className="text-secondary-text text-xs"
-                      style={{ fontFamily: "Inter_400Regular" }}
-                    >
-                      {e.label}: {e.value} {e.unit}
-                    </Text>
+                    <EvidenceRow key={j} item={e} />
                   ))}
                 </View>
               )}
+
+              {msg.reasoning && <ReasoningSection reasoning={msg.reasoning} />}
+
               {msg.caveats && msg.caveats.length > 0 && (
                 <View className="mt-2 pt-2 border-t border-border">
                   {msg.caveats.map((c, j) => (
