@@ -1,0 +1,7 @@
+{
+  "file": "docs/functional-requirements.md",
+  "type": "SPEC",
+  "title": "Functional Requirements",
+  "scope": "Device onboarding, readings/forecast, companion AI, non-functional requirements",
+  "cross_references": ["docs/product-brief.md", "docs/device-connection.md", "docs/ai-voice-conversation.md"]
+}

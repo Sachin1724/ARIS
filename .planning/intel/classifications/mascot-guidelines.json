@@ -1,0 +1,7 @@
+{
+  "file": "docs/mascot-guidelines.md",
+  "type": "DOC",
+  "title": "Mascot Guidelines",
+  "scope": "Mascot character consistency, approved states, context sizing, screen reader rules",
+  "cross_references": ["docs/animation-motion.md", "docs/design-system.md"]
+}

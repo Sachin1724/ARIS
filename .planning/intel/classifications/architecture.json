@@ -1,0 +1,7 @@
+{
+  "file": "docs/architecture.md",
+  "type": "SPEC",
+  "title": "Architecture",
+  "scope": "System architecture: app client, UNO Q backend, BLE/Wi-Fi split, offline behavior, REST/WebSocket protocol",
+  "cross_references": ["docs/api-contract.md", "docs/device-connection.md", "docs/architecture-decisions.md"]
+}

@@ -1,0 +1,7 @@
+{
+  "file": "docs/architecture-decisions.md",
+  "type": "ADR",
+  "title": "Architecture Decisions",
+  "scope": "Locked and accepted stack/protocol/design decisions: RN+Expo+TS, gluestack+NativeWind, UNO Q backend, BLE+Wi-Fi, REST+WS, deterministic rules, mascot theme",
+  "cross_references": ["docs/architecture.md", "docs/design-system.md"]
+}

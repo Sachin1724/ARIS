@@ -1,0 +1,7 @@
+{
+  "file": "docs/data-model.md",
+  "type": "SPEC",
+  "title": "Data Model",
+  "scope": "TypeScript types: ConnectionState, SensorValue, ForecastPoint, null/calibration/stale semantics",
+  "cross_references": ["docs/api-contract.md", "docs/functional-requirements.md"]
+}

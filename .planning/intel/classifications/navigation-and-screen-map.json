@@ -1,0 +1,7 @@
+{
+  "file": "docs/navigation-and-screen-map.md",
+  "type": "SPEC",
+  "title": "Navigation and Screen Map",
+  "scope": "Expo Router file structure, tab layout, screen purposes, demo/onboarding mode",
+  "cross_references": ["docs/screen-specifications.md", "docs/ui-flow.md"]
+}

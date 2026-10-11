@@ -1,0 +1,7 @@
+{
+  "file": "docs/ui-flow.md",
+  "type": "SPEC",
+  "title": "UI Flow",
+  "scope": "First launch flow, returning user flow, navigation paths, connection state machine, live update cycle",
+  "cross_references": ["docs/navigation-and-screen-map.md", "docs/device-connection.md"]
+}

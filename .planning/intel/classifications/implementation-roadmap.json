@@ -1,0 +1,7 @@
+{
+  "file": "docs/implementation-roadmap.md",
+  "type": "DOC",
+  "title": "Implementation Roadmap",
+  "scope": "9-phase build order from scaffold through release testing",
+  "cross_references": ["docs/functional-requirements.md"]
+}

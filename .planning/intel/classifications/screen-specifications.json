@@ -1,0 +1,7 @@
+{
+  "file": "docs/screen-specifications.md",
+  "type": "SPEC",
+  "title": "Screen Specifications",
+  "scope": "Per-screen content and state requirements: Home, Air Quality, Trends, Explore, Ask ARIS, Connect, Profile",
+  "cross_references": ["docs/navigation-and-screen-map.md", "docs/error-empty-loading-states.md"]
+}

@@ -1,0 +1,7 @@
+{
+  "file": "docs/product-brief.md",
+  "type": "PRD",
+  "title": "Product Brief",
+  "scope": "Overall product vision, first release scope, principles and exclusions",
+  "cross_references": ["docs/functional-requirements.md", "docs/architecture.md"]
+}

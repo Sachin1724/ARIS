@@ -1,0 +1,7 @@
+{
+  "file": "docs/api-contract.md",
+  "type": "SPEC",
+  "title": "API Contract (Proposed)",
+  "scope": "Draft REST endpoints, WebSocket, example payloads, authentication/validation rules",
+  "cross_references": ["docs/architecture.md", "docs/data-model.md"]
+}

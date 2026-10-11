@@ -1,0 +1,7 @@
+{
+  "file": "docs/design-system.md",
+  "type": "SPEC",
+  "title": "Design System",
+  "scope": "Visual direction, typography (Poppins/Inter), color tokens, spacing, touch targets, chart/gradient rules",
+  "cross_references": ["docs/mascot-guidelines.md", "docs/accessibility.md"]
+}

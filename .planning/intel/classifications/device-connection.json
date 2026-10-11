@@ -1,0 +1,7 @@
+{
+  "file": "docs/device-connection.md",
+  "type": "SPEC",
+  "title": "Device Connection: BLE Setup + Existing Wi-Fi",
+  "scope": "BLE provisioning steps, GATT characteristics, security constraints, test scenarios",
+  "cross_references": ["docs/architecture.md", "docs/security-privacy.md"]
+}

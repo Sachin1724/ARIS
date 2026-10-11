@@ -1,0 +1,7 @@
+{
+  "file": "docs/security-privacy.md",
+  "type": "SPEC",
+  "title": "Security and Privacy",
+  "scope": "Local-first, BLE auth, credential handling, TLS, secure storage, permissions, provider key isolation",
+  "cross_references": ["docs/device-connection.md", "docs/api-contract.md"]
+}

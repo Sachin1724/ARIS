@@ -1,0 +1,7 @@
+{
+  "file": "docs/ai-voice-conversation.md",
+  "type": "SPEC",
+  "title": "AI, Voice and Conversation",
+  "scope": "Deterministic pipeline, SLM phrasing constraints, text/voice flow, answer style guidelines",
+  "cross_references": ["docs/functional-requirements.md", "docs/security-privacy.md"]
+}

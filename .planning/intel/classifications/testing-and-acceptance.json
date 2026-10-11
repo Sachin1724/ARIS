@@ -1,0 +1,7 @@
+{
+  "file": "docs/testing-and-acceptance.md",
+  "type": "DOC",
+  "title": "Testing and Acceptance",
+  "scope": "Test categories: UI, data integrity, connectivity, AI; acceptance criteria",
+  "cross_references": ["docs/functional-requirements.md", "docs/release-checklist.md"]
+}

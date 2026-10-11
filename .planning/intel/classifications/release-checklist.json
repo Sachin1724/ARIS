@@ -1,0 +1,7 @@
+{
+  "file": "docs/release-checklist.md",
+  "type": "DOC",
+  "title": "Release Checklist",
+  "scope": "Pre-release verification items: fonts, mascot, states, demo data, BLE, auth, secrets, accessibility",
+  "cross_references": ["docs/testing-and-acceptance.md"]
+}

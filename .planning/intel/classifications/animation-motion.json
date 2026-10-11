@@ -1,0 +1,7 @@
+{
+  "file": "docs/animation-motion.md",
+  "type": "DOC",
+  "title": "Animation and Motion",
+  "scope": "Timing targets, mascot animation states, UI motion patterns, reduced-motion",
+  "cross_references": ["docs/mascot-guidelines.md", "docs/accessibility.md"]
+}

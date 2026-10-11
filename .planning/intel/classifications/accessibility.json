@@ -1,0 +1,7 @@
+{
+  "file": "docs/accessibility.md",
+  "type": "DOC",
+  "title": "Accessibility",
+  "scope": "Screen reader labels, touch targets, text scaling, color independence, chart labels, reduced motion, contrast",
+  "cross_references": ["docs/design-system.md", "docs/animation-motion.md"]
+}

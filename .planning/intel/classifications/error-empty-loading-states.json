@@ -1,0 +1,7 @@
+{
+  "file": "docs/error-empty-loading-states.md",
+  "type": "DOC",
+  "title": "Error, Empty, Loading and Stale States",
+  "scope": "Per-context state handling: Home, Connection, Network; copy examples and recovery actions",
+  "cross_references": ["docs/screen-specifications.md", "docs/device-connection.md"]
+}
