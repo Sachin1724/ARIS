@@ -14,6 +14,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { GluestackUIProvider } from "@gluestack-ui/themed";
 import { View, Text } from "react-native";
+import { colors } from "../constants/tokens";
 import "../global.css";
 
 SplashScreen.preventAutoHideAsync();
@@ -50,25 +51,28 @@ export default function RootLayout() {
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: "#FBF8FF" },
+          contentStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.ink,
+          headerStyle: { backgroundColor: colors.background },
+          headerTitleStyle: { fontFamily: "Poppins_600SemiBold", color: colors.ink },
         }}
       >
         <Stack.Screen name="(tabs)" />
         <Stack.Screen
           name="air-quality/index"
-          options={{ headerShown: true, title: "Air Quality", headerTintColor: "#191936" }}
+          options={{ headerShown: true, title: "Air Quality" }}
         />
         <Stack.Screen
           name="ask-aris/index"
-          options={{ headerShown: true, title: "Ask ARIS", headerTintColor: "#191936" }}
+          options={{ headerShown: true, title: "Ask ARIS" }}
         />
         <Stack.Screen
           name="device/index"
-          options={{ headerShown: true, title: "Connect Device", headerTintColor: "#191936" }}
+          options={{ headerShown: true, title: "Connect Device" }}
         />
         <Stack.Screen
           name="settings/index"
-          options={{ headerShown: true, title: "Settings", headerTintColor: "#191936" }}
+          options={{ headerShown: true, title: "Settings" }}
         />
       </Stack>
       <StatusBar style="dark" />

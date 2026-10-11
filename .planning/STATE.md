@@ -2,8 +2,8 @@
 
 ## Current
 - **Milestone**: 1 — ARIS App v1
-- **Phase**: 8 — Text Assistant (complete)
-- **Next**: Phase 9 — Security, Accessibility, Testing and Release
+- **Phase**: 9 — Security, Accessibility, Testing and Release (complete)
+- **Next**: None — Phase 6 (BLE) gated on firmware
 
 ## Phase Status
 
@@ -17,6 +17,6 @@
 | 6 | BLE Provisioning | ○ Pending (gated) |
 | 7 | Forecast, History and External Context | ✓ Complete |
 | 8 | Text Assistant | ✓ Complete |
-| 9 | Security, Accessibility, Testing and Release | ○ Pending |
+| 9 | Security, Accessibility, Testing and Release | ✓ Complete |
 
-Progress: █████████░ 89%
+Progress: ██████████ 100% (Phase 6 BLE gated on firmware)
