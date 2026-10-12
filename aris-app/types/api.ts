@@ -49,6 +49,34 @@ export interface DeviceStatus {
   forecast_status: ForecastStatus;
 }
 
+/** GET /api/v1/system — board health. Any probe that failed reports null. */
+export interface SystemHealth {
+  timestamp: string;
+  cpu: {
+    load1: number | null;
+    load5: number | null;
+    load15: number | null;
+    cores: number;
+    load1_pct: number | null;
+  } | null;
+  memory: { total_mb: number | null; available_mb: number | null; used_pct: number | null } | null;
+  disk: { total_gb: number | null; free_gb: number | null; used_pct: number | null } | null;
+  services: { unit: string; state: string; ok: boolean }[] | null;
+  slm: { reachable: boolean; port: number } | null;
+  collector: { timestamp: string | null; age_s: number | null; ok: boolean } | null;
+  /** Distinct devices vs raw socket count: one phone can hold several sockets. */
+  clients: {
+    devices: number;
+    sockets: number;
+    hosts: string[];
+    connections: { host: string; port: number; connected_s: number }[];
+  } | null;
+  ble: { pairing_window_s: number; advertising: boolean } | null;
+  temperature_c: number | null;
+  uptime_s: number | null;
+  errors?: Record<string, string>;
+}
+
 export interface HealthResponse {
   status: "ok" | "degraded" | "error";
   timestamp: string;

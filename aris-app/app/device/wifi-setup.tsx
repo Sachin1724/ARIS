@@ -1,5 +1,13 @@
-import React, { useState } from "react";
-import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
+import React, { useState, useRef, useCallback } from "react";
+import {
+  View,
+  Text,
+  ScrollView,
+  Pressable,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -13,6 +21,13 @@ export default function DeviceWifiSetupScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
+
+  // The password field and submit button sit at the end of the page, so the
+  // keyboard covers them unless we scroll down when a field takes focus.
+  const handleFieldFocus = useCallback(() => {
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120);
+  }, []);
 
   const state = deviceApi.getState();
   const device = state.selectedDevice;
@@ -58,10 +73,17 @@ export default function DeviceWifiSetupScreen() {
         <View style={{ width: 38 }} />
       </View>
 
+      <KeyboardAvoidingView
+        style={styles.scrollView}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
       <ScrollView
+        ref={scrollRef}
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
       >
         <View style={styles.contextBanner}>
           <Ionicons name="bluetooth" size={18} color={colors.accent} />
@@ -80,6 +102,7 @@ export default function DeviceWifiSetupScreen() {
         <WifiCredentialsForm
           onSubmit={handleProvision}
           loading={loading}
+          onFieldFocus={handleFieldFocus}
         />
 
         {error && (
@@ -89,6 +112,7 @@ export default function DeviceWifiSetupScreen() {
           </View>
         )}
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { useConnection } from "../../hooks/useConnection";
+import { useDeviceStatus } from "../../hooks/useDeviceStatus";
 import { usePreferences } from "../../context/PreferencesContext";
 
 
@@ -29,8 +30,17 @@ export default function SettingsScreen() {
   const [exporting, setExporting] = useState(false);
 
   const connection = useConnection();
+  const { status: deviceStatus } = useDeviceStatus();
 
   const isConnected = connection.status === "connected";
+
+  // Raw channel readings, straight from the board. Anything the hardware does
+  // not report stays "--" instead of carrying an invented figure.
+  const channel = (key: string, digits = 3) => {
+    const reading = deviceStatus?.sensors?.[key];
+    if (!reading || reading.value === null || reading.value === undefined) return "--";
+    return `${reading.value.toFixed(digits)} ${reading.unit}`;
+  };
 
   const handleTestAndSaveEndpoint = async () => {
     const raw = endpointInput.trim().replace(/^https?:\/\//i, "");
@@ -292,29 +302,34 @@ export default function SettingsScreen() {
         {showDiagnostics && (
           <View style={styles.diagnosticsBody}>
             <View style={styles.diagRow}>
-              <Text style={styles.diagLabel}>SPS30 Optical Channel</Text>
-              <Text style={styles.diagVal}>Laser Verified (99.2% Clean)</Text>
+              <Text style={styles.diagLabel}>MQ135 gas sensor</Text>
+              <Text style={styles.diagVal}>{channel("mq135_voltage_v")}</Text>
             </View>
             <View style={styles.diagRow}>
-              <Text style={styles.diagLabel}>Flow Rate</Text>
-              <Text style={styles.diagVal}>0.28 L/min (Nominal)</Text>
+              <Text style={styles.diagLabel}>MG811 CO2 cell</Text>
+              <Text style={styles.diagVal}>{channel("mg811_voltage_v")}</Text>
             </View>
             <View style={styles.diagRow}>
-              <Text style={styles.diagLabel}>SHT4x Temp/RH Interface</Text>
-              <Text style={styles.diagVal}>I2C 0x44 (Active)</Text>
+              <Text style={styles.diagLabel}>GP2Y dust sensor</Text>
+              <Text style={styles.diagVal}>{channel("gp2y_voltage_v")}</Text>
             </View>
             <View style={styles.diagRow}>
-              <Text style={styles.diagLabel}>MG811 CO2 Cell Voltage</Text>
-              <Text style={styles.diagVal}>0.342 V (Compensated)</Text>
+              <Text style={styles.diagLabel}>BME690 gas resistance</Text>
+              <Text style={styles.diagVal}>{channel("bme_gas_kohm", 1)}</Text>
             </View>
             <View style={styles.diagRow}>
-              <Text style={styles.diagLabel}>Wi-Fi RSSI</Text>
-              <Text style={styles.diagVal}>-62 dBm (Strong)</Text>
+              <Text style={styles.diagLabel}>BME690 temperature</Text>
+              <Text style={styles.diagVal}>{channel("temperature_c", 1)}</Text>
             </View>
-            <View style={styles.diagRow}>
-              <Text style={styles.diagLabel}>Packet Loss</Text>
-              <Text style={styles.diagVal}>0.0% (Zero dropped frames)</Text>
-            </View>
+            <Pressable
+              style={styles.diagRow}
+              onPress={() => router.push("/device/diagnostics")}
+              accessibilityRole="button"
+              accessibilityLabel="Open system monitor"
+            >
+              <Text style={styles.diagLabel}>Board health (CPU, memory, services)</Text>
+              <Text style={[styles.diagVal, { color: colors.accent }]}>System Monitor ›</Text>
+            </Pressable>
           </View>
         )}
       </View>

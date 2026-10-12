@@ -1,13 +1,21 @@
 import { Platform, PermissionsAndroid } from "react-native";
+import NetInfo from "@react-native-community/netinfo";
 import {
   ARIS_SERVICE_UUID,
   ARIS_CHARACTERISTICS,
   ArisDiscoveredDevice,
   ArisDeviceInfo,
+  ScanDiagnostics,
   SetupStatusUpdate,
   NetworkInfoPayload,
 } from "./bleProtocol";
+import { buildCandidates, probeEndpoints } from "./networkProbe";
 import { apiClient } from "../api-client";
+
+/** Give the Bluetooth stack this long to finish powering on before scanning. */
+const ADAPTER_READY_TIMEOUT = 5000;
+/** Scan filtered by our service UUID first; broaden if nothing shows up. */
+const FILTERED_SCAN_WINDOW = 4000;
 
 let nativeBleInstance: any = null;
 try {
@@ -20,34 +28,94 @@ try {
   nativeBleInstance = null;
 }
 
-async function requestBlePermissions(): Promise<boolean> {
-  if (Platform.OS !== "android") return true;
+interface PermissionReport {
+  granted: boolean;
+  locationGranted: boolean;
+  missing: string[];
+}
+
+async function requestBlePermissions(): Promise<PermissionReport> {
+  if (Platform.OS !== "android") {
+    return { granted: true, locationGranted: true, missing: [] };
+  }
   try {
+    const { PERMISSIONS, RESULTS } = PermissionsAndroid;
     if (Platform.Version >= 31) {
       const results = await PermissionsAndroid.requestMultiple([
-        PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
-        PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
-        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+        PERMISSIONS.BLUETOOTH_SCAN,
+        PERMISSIONS.BLUETOOTH_CONNECT,
+        PERMISSIONS.ACCESS_FINE_LOCATION,
       ]);
-      return (
-        results[PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN] ===
-          PermissionsAndroid.RESULTS.GRANTED &&
-        results[PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT] ===
-          PermissionsAndroid.RESULTS.GRANTED
-      );
-    } else {
-      const granted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
-      );
-      return granted === PermissionsAndroid.RESULTS.GRANTED;
+      const missing = Object.entries(results)
+        .filter(([, state]) => state !== RESULTS.GRANTED)
+        .map(([name]) => name.replace("android.permission.", ""));
+      return {
+        granted:
+          results[PERMISSIONS.BLUETOOTH_SCAN] === RESULTS.GRANTED &&
+          results[PERMISSIONS.BLUETOOTH_CONNECT] === RESULTS.GRANTED,
+        // Many OEM builds return zero scan results without it, and report no error.
+        locationGranted: results[PERMISSIONS.ACCESS_FINE_LOCATION] === RESULTS.GRANTED,
+        missing,
+      };
     }
+    const granted = await PermissionsAndroid.request(PERMISSIONS.ACCESS_FINE_LOCATION);
+    const ok = granted === RESULTS.GRANTED;
+    return {
+      granted: ok,
+      locationGranted: ok,
+      missing: ok ? [] : ["ACCESS_FINE_LOCATION"],
+    };
   } catch {
-    return false;
+    return { granted: false, locationGranted: false, missing: ["permission request failed"] };
   }
+}
+
+/**
+ * A scan started before the adapter finishes powering on silently returns
+ * nothing, which is the usual difference between a warm debug session and a
+ * cold release launch.
+ */
+async function waitForAdapter(): Promise<string> {
+  if (!nativeBleInstance) return "Unavailable";
+  let state = "Unknown";
+  try {
+    state = await nativeBleInstance.state();
+  } catch {
+    return "Unknown";
+  }
+  if (state === "PoweredOn") return state;
+
+  return new Promise<string>((resolve) => {
+    let settled = false;
+    const finish = (value: string) => {
+      if (settled) return;
+      settled = true;
+      try {
+        subscription?.remove();
+      } catch {
+        // listener already gone
+      }
+      clearTimeout(timer);
+      resolve(value);
+    };
+    const timer = setTimeout(() => finish(state), ADAPTER_READY_TIMEOUT);
+    const subscription = nativeBleInstance.onStateChange((next: string) => {
+      state = next;
+      if (next === "PoweredOn") finish(next);
+    }, true);
+  });
+}
+
+export interface ScanOptions {
+  /** Endpoint that worked last time, tried before any sweep. */
+  savedEndpoint?: string | null;
+  /** API token, so a provisioned board answers 200 instead of 401. */
+  token?: string | null;
 }
 
 export class ArisBleManager {
   private isScanning = false;
+  private lastDiagnostics: ScanDiagnostics | null = null;
   private connectedDeviceId: string | null = null;
   private statusListeners = new Set<(status: SetupStatusUpdate) => void>();
 
@@ -63,13 +131,22 @@ export class ArisBleManager {
     return nativeBleInstance !== null;
   }
 
+  /** Why the last scan found what it found. Surfaced on the scan screen. */
+  get diagnostics(): ScanDiagnostics | null {
+    return this.lastDiagnostics;
+  }
+
   /**
-   * Scan for real ARIS UNO Q devices advertising via BLE or responding on local network.
-   * Never yields fake or simulated devices.
+   * Scan for real ARIS UNO Q devices: BLE advert plus a sweep of the phone's own
+   * subnet for the local API. Never yields fake or simulated devices.
+   *
+   * The board only advertises over BLE while its pairing window is open (hold
+   * D3 for ~3s), so an empty BLE result is normal and not an error.
    */
   async startScan(
     onDeviceFound: (device: ArisDiscoveredDevice) => void,
-    onError: (err: string) => void
+    onError: (err: string) => void,
+    options: ScanOptions = {}
   ): Promise<() => void> {
     if (this.isScanning) {
       return () => this.stopScan();
@@ -77,99 +154,178 @@ export class ArisBleManager {
 
     this.isScanning = true;
     const foundIds = new Set<string>();
+    const cancelled = { aborted: false };
+    const diagnostics: ScanDiagnostics = {
+      nativeBleAvailable: nativeBleInstance !== null,
+      permissionsGranted: false,
+      locationPermissionGranted: false,
+      adapterState: nativeBleInstance ? "Unknown" : "Unavailable",
+      bleScanStarted: false,
+      wifiSubnetScanned: null,
+      endpointsProbed: 0,
+      notes: [],
+    };
+    this.lastDiagnostics = diagnostics;
+
+    const emit = (device: ArisDiscoveredDevice) => {
+      if (cancelled.aborted || foundIds.has(device.id)) return;
+      foundIds.add(device.id);
+      onDeviceFound(device);
+    };
 
     if (nativeBleInstance) {
-      const hasPerm = await requestBlePermissions();
-      if (!hasPerm) {
-        onError("Bluetooth and location permissions are required to scan for nearby UNO Q devices.");
+      const permissions = await requestBlePermissions();
+      diagnostics.permissionsGranted = permissions.granted;
+      diagnostics.locationPermissionGranted = permissions.locationGranted;
+
+      if (!permissions.granted) {
+        diagnostics.notes.push(`Permissions denied: ${permissions.missing.join(", ")}`);
+        onError(
+          "Bluetooth permissions are required to find a nearby UNO Q. Grant them in Settings, then scan again."
+        );
       } else {
-        try {
-          nativeBleInstance.startDeviceScan(
-            null,
-            { allowDuplicates: false },
-            (error: any, device: any) => {
-              if (error) {
-                onError(error.message || "BLE scan error");
-                return;
-              }
-              if (!device || foundIds.has(device.id)) return;
-
-              const dName = device.name || device.localName || "";
-              const matchesName =
-                dName.toUpperCase().includes("ARIS") ||
-                dName.toUpperCase().includes("UNO") ||
-                dName.toUpperCase().includes("ARDUINO");
-              const matchesService =
-                device.serviceUUIDs &&
-                device.serviceUUIDs.some(
-                  (u: string) =>
-                    u.toLowerCase() === ARIS_SERVICE_UUID.toLowerCase()
-                );
-
-              if (matchesName || matchesService) {
-                foundIds.add(device.id);
-                onDeviceFound({
-                  id: device.id,
-                  name: dName || "ARIS UNO Q",
-                  rssi: device.rssi ?? -65,
-                  serviceUUIDs: device.serviceUUIDs ?? [ARIS_SERVICE_UUID],
-                  isArisGatt: true,
-                  macAddress: device.id,
-                });
-              }
-            }
+        if (!permissions.locationGranted) {
+          diagnostics.notes.push("Location permission denied - Android may return no BLE results.");
+        }
+        diagnostics.adapterState = await waitForAdapter();
+        if (diagnostics.adapterState !== "PoweredOn") {
+          diagnostics.notes.push(`Bluetooth adapter is ${diagnostics.adapterState}.`);
+          onError(
+            diagnostics.adapterState === "PoweredOff"
+              ? "Bluetooth is turned off. Turn it on to find a nearby UNO Q."
+              : `Bluetooth is not ready (${diagnostics.adapterState}). Wi-Fi discovery is still running.`
           );
-        } catch (e) {
-          onError(e instanceof Error ? e.message : "Failed to start BLE scanner");
+        } else {
+          diagnostics.bleScanStarted = this.beginBleScan(emit, onError, cancelled, diagnostics);
         }
       }
     } else {
-      // In Expo Go, native BLE library is not linked.
-      // Inform caller gently without terminating network scan.
+      diagnostics.notes.push("Native BLE module not linked (Expo Go).");
       onError(
         "Bluetooth LE hardware scan requires an Android Development Build. In Expo Go, connect via local Wi-Fi IP address below."
       );
     }
 
-    // Simultaneously probe local network for active UNO Q FastAPI services
-    const candidateEndpoints = [
-      "http://192.168.31.46:8000",
-      "http://aris-unoq.local:8000",
-      "http://192.168.31.95:8000",
-      "http://192.168.1.45:8000",
-      "http://10.0.2.2:8000",
-    ];
-
-    candidateEndpoints.forEach(async (url) => {
-      try {
-        const controller = new AbortController();
-        const tm = setTimeout(() => controller.abort(), 2000);
-        const res = await fetch(`${url}/api/v1/health`, {
-          signal: controller.signal,
-        });
-        clearTimeout(tm);
-        if (res.ok) {
-          const health = await res.json();
-          if (health.status === "ok" && !foundIds.has(url)) {
-            foundIds.add(url);
-            onDeviceFound({
-              id: url,
-              name: `ARIS UNO Q (${health.hardware || "Wi-Fi"})`,
-              rssi: -45,
-              serviceUUIDs: [ARIS_SERVICE_UUID],
-              isArisGatt: true,
-              macAddress: url.replace(/^http:\/\//, ""),
-            });
-          }
-        }
-      } catch {
-        // Endpoint inactive
-      }
-    });
+    this.probeLocalNetwork(emit, options, cancelled, diagnostics);
 
     return () => {
+      cancelled.aborted = true;
       this.stopScan();
     };
+  }
+
+  /**
+   * Filtered scan first (cheap, and the board advertises our service UUID), then
+   * an unfiltered pass for boards whose advert is truncated to the name only.
+   */
+  private beginBleScan(
+    emit: (device: ArisDiscoveredDevice) => void,
+    onError: (err: string) => void,
+    cancelled: { aborted: boolean },
+    diagnostics: ScanDiagnostics
+  ): boolean {
+    const handle = (error: any, device: any) => {
+      if (cancelled.aborted) return;
+      if (error) {
+        diagnostics.notes.push(`BLE scan error: ${error.message || error.reason || "unknown"}`);
+        onError(error.message || "BLE scan error");
+        return;
+      }
+      if (!device) return;
+
+      const name = device.name || device.localName || "";
+      const matchesService = (device.serviceUUIDs ?? []).some(
+        (uuid: string) => uuid.toLowerCase() === ARIS_SERVICE_UUID.toLowerCase()
+      );
+      const matchesName = /aris|unoq|uno q|arduino/i.test(name);
+      if (!matchesService && !matchesName) return;
+
+      emit({
+        id: device.id,
+        name: name || "ARIS UNO Q",
+        rssi: device.rssi ?? -65,
+        serviceUUIDs: device.serviceUUIDs ?? [ARIS_SERVICE_UUID],
+        isArisGatt: matchesService,
+        macAddress: device.id,
+        transport: "ble",
+      });
+    };
+
+    try {
+      nativeBleInstance.startDeviceScan(
+        [ARIS_SERVICE_UUID],
+        { allowDuplicates: false },
+        handle
+      );
+    } catch (e) {
+      diagnostics.notes.push(
+        `Filtered scan failed: ${e instanceof Error ? e.message : "unknown"}`
+      );
+      onError(e instanceof Error ? e.message : "Failed to start BLE scanner");
+      return false;
+    }
+
+    setTimeout(() => {
+      if (cancelled.aborted || !this.isScanning) return;
+      try {
+        nativeBleInstance.stopDeviceScan();
+        nativeBleInstance.startDeviceScan(null, { allowDuplicates: false }, handle);
+        diagnostics.notes.push("Broadened to unfiltered BLE scan.");
+      } catch {
+        // Keep whatever the filtered pass found.
+      }
+    }, FILTERED_SCAN_WINDOW);
+
+    return true;
+  }
+
+  /** Sweep the phone's own /24 for the local API. */
+  private async probeLocalNetwork(
+    emit: (device: ArisDiscoveredDevice) => void,
+    options: ScanOptions,
+    cancelled: { aborted: boolean },
+    diagnostics: ScanDiagnostics
+  ): Promise<void> {
+    let selfIp: string | null = null;
+    try {
+      const net = await NetInfo.fetch();
+      const details = net.details as { ipAddress?: string } | null;
+      selfIp = details?.ipAddress ?? null;
+    } catch {
+      diagnostics.notes.push("Could not read Wi-Fi address from the OS.");
+    }
+
+    const candidates = buildCandidates({
+      savedEndpoint: options.savedEndpoint ?? null,
+      selfIp,
+    });
+    diagnostics.wifiSubnetScanned = selfIp
+      ? `${selfIp.split(".").slice(0, 3).join(".")}.0/24`
+      : null;
+    diagnostics.endpointsProbed = candidates.length;
+    if (!selfIp) {
+      diagnostics.notes.push("Not on Wi-Fi - only the saved endpoint and mDNS name were tried.");
+    }
+
+    await probeEndpoints(candidates, {
+      token: options.token ?? null,
+      signal: cancelled,
+      onFound: (result) => {
+        const host = result.url.replace(/^https?:\/\//i, "");
+        emit({
+          id: result.url,
+          name: result.requiresToken
+            ? `ARIS UNO Q (${host}, needs token)`
+            : `ARIS UNO Q (${result.hardware || host})`,
+          rssi: -45,
+          serviceUUIDs: [ARIS_SERVICE_UUID],
+          isArisGatt: false,
+          macAddress: host,
+          transport: "wifi",
+          requiresToken: result.requiresToken,
+        });
+      },
+    });
   }
 
   stopScan(): void {
@@ -221,18 +377,23 @@ export class ArisBleManager {
     if (apiClient.isConfigured) {
       try {
         const dev = await apiClient.device();
+        // The sensor list comes from whatever the board actually reports. It
+        // used to be a hardcoded SPS30/SHT4x set that this hardware does not
+        // even have.
+        let sensorsDetected: string[] = [];
+        try {
+          const status = await apiClient.status();
+          sensorsDetected = Object.keys(status.sensors ?? {});
+        } catch {
+          // Leave it empty rather than inventing a parts list.
+        }
         return {
           deviceId: dev.id,
           model: dev.name || "Arduino UNO Q",
           firmwareVersion: dev.firmware_version,
           protocolVersion: "1.0.0",
           uptimeSeconds: dev.uptime_seconds,
-          sensorsDetected: [
-            "Sensirion SPS30",
-            "Sensirion SHT4x",
-            "MQ-135",
-            "MG-811",
-          ],
+          sensorsDetected,
         };
       } catch {
         // Fall through
@@ -241,16 +402,11 @@ export class ArisBleManager {
 
     return {
       deviceId,
-      model: "Arduino UNO Q (Linux Debian 12 / BlueZ)",
-      firmwareVersion: "0.1.0-release",
+      model: "Arduino UNO Q",
+      firmwareVersion: "unknown",
       protocolVersion: "1.0.0",
       uptimeSeconds: 0,
-      sensorsDetected: [
-        "Sensirion SPS30",
-        "Sensirion SHT4x",
-        "MQ-135",
-        "MG-811",
-      ],
+      sensorsDetected: [],
     };
   }
 

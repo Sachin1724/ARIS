@@ -1,0 +1,9 @@
+[Unit]
+Description=ARIS safe shutdown
+# Triggered by aris-poweroff.path, never enabled on its own.
+
+[Service]
+Type=oneshot
+# Remove the request first: if poweroff is interrupted, the board must not boot
+# straight back into shutting itself down.
+ExecStart=/bin/sh -c 'rm -f /run/aris/poweroff.request /home/arduino/ArduinoApps/aeris/python/aeris_power_request.json; /usr/bin/systemctl poweroff'

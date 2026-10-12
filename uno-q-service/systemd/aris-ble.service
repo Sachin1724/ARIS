@@ -1,0 +1,18 @@
+[Unit]
+Description=ARIS BLE GATT Provisioning (Just Works, physical D3 gate)
+# BlueZ must own the adapter before the GATT application can register.
+After=bluetooth.service network.target
+Wants=bluetooth.service
+
+[Service]
+Type=simple
+User=arduino
+WorkingDirectory=/home/arduino/ArduinoApps/aeris/python
+ExecStart=/usr/bin/python3 /home/arduino/ArduinoApps/aeris/python/aeris_ble.py
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

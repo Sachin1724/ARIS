@@ -6,8 +6,10 @@ Serves typed REST endpoints and 1Hz WebSocket streaming over local Wi-Fi.
 
 import asyncio
 import json
+import logging
 import math
 import time
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -28,6 +30,14 @@ app.add_middleware(
 )
 
 START_TIME = time.time()
+
+logger = logging.getLogger("aris.api")
+
+
+def iso(epoch_s: Optional[float] = None) -> str:
+    """Timezone-aware ISO 8601 timestamp. The app parses timestamps as strings."""
+    ts = time.time() if epoch_s is None else epoch_s
+    return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
 
 # -------------------------------------------------------------
 # Telemetry State & Sensor Simulator
@@ -70,7 +80,7 @@ async def health():
     return {
         "status": "ok",
         "uptime_s": int(time.time() - START_TIME),
-        "timestamp": int(time.time()),
+        "timestamp": iso(),
         "hardware": "Arduino UNO Q",
         "service": "aris-hub"
     }
@@ -114,7 +124,7 @@ async def device_status():
 
     return {
         "device_id": "UNOQ-8F4C-0082",
-        "timestamp": int(time.time()),
+        "timestamp": iso(),
         "sensors": sensors,
         "aqi_category": aqi_category,
         "aqi_color": aqi_color,
@@ -160,7 +170,7 @@ async def forecast():
         # diurnal pattern peaking late afternoon
         val = round(26.0 + 8.5 * math.sin((i - 6) / 24.0 * 2 * math.pi), 1)
         points.append({
-            "timestamp": t,
+            "timestamp": iso(t),
             "pm25": val,
             "confidence_lower": round(val - 2.8, 1),
             "confidence_upper": round(val + 3.1, 1),
@@ -168,7 +178,7 @@ async def forecast():
     return {
         "model": "ARIS LSTM Environmental Forecaster v1.2",
         "horizon_hours": 24,
-        "generated_at": base_time,
+        "generated_at": iso(base_time),
         "predictions": points
     }
 
@@ -180,7 +190,7 @@ async def history(hours: int = 12):
         t = base_time - (i * 900)
         val = round(29.0 - 5.0 * math.cos(i / 16.0), 1)
         points.append({
-            "timestamp": t,
+            "timestamp": iso(t),
             "pm25": val,
             "temp_c": round(29.0 - 2.0 * math.sin(i / 20.0), 1),
             "humidity_pct": round(65.0 + 4.0 * math.cos(i / 20.0), 1),
@@ -236,7 +246,7 @@ async def assistant_query(payload: QueryPayload):
     return {
         "answer": answer,
         "evidence": evidence,
-        "timestamp": int(time.time()),
+        "timestamp": iso(),
         "model": "ARIS Deterministic Inference Engine",
         "grounded": True
     }
@@ -250,18 +260,27 @@ async def websocket_live_telemetry(websocket: WebSocket):
     await websocket.accept()
     try:
         while True:
-            sensors = get_current_sensor_readings()
-            event = {
-                "type": "sensor_update",
-                "timestamp": int(time.time()),
-                "data": sensors
-            }
+            try:
+                event = {
+                    "type": "sensor_update",
+                    "timestamp": iso(),
+                    "data": get_current_sensor_readings()
+                }
+            except Exception as exc:
+                # A failed sensor read must not end the stream; emit a heartbeat
+                # so the client watchdog still sees the link as alive.
+                logger.warning("sensor read failed: %s", exc)
+                event = {
+                    "type": "heartbeat",
+                    "timestamp": iso(),
+                    "data": {"sensor_error": str(exc)}
+                }
             await websocket.send_text(json.dumps(event))
             await asyncio.sleep(1.0)
     except WebSocketDisconnect:
-        pass
-    except Exception:
-        pass
+        logger.info("websocket client disconnected")
+    except Exception as exc:
+        logger.warning("websocket stream ended: %s", exc)
 
 if __name__ == "__main__":
     import uvicorn

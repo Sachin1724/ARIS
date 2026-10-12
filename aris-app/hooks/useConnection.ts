@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { apiClient, ApiClientError } from "../services/api-client";
 import { wsManager } from "../services/websocket-manager";
 
@@ -15,6 +15,10 @@ export function useConnection(): UseConnectionResult {
     apiClient.isConfigured ? "connected" : "disconnected",
   );
 
+  // Status can flap several times in a second while a socket is replaced; one
+  // health probe at a time, or the device gets a burst of parallel requests.
+  const probing = useRef(false);
+
   useEffect(() => {
     const unsubscribe = wsManager.onStatusChange((wsStatus) => {
       switch (wsStatus) {
@@ -29,14 +33,17 @@ export function useConnection(): UseConnectionResult {
           // WS dropped but apiClient may still reach the server — try HTTP health check
           if (apiClient.isConfigured) {
             setStatus("reconnecting");
+            if (probing.current) break;
+            probing.current = true;
             apiClient.health().then((h) => {
               if (h.status === "ok" || h.status === "degraded") {
                 setStatus("connected");
-                wsManager.connect();
+                wsManager.ensureHealthy();
               } else {
                 setStatus("disconnected");
               }
-            }).catch(() => setStatus("disconnected"));
+            }).catch(() => setStatus("disconnected"))
+              .finally(() => { probing.current = false; });
           } else {
             setStatus("disconnected");
           }

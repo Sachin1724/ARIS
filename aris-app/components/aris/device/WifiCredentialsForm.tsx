@@ -27,6 +27,9 @@ interface WifiCredentialsFormProps {
   onSubmit: (credentials: WifiCredentials) => void;
   loading?: boolean;
   initialSsid?: string;
+  /** Called when a text field takes focus, so the parent can scroll it clear
+   *  of the keyboard. The password field sits below the network list. */
+  onFieldFocus?: () => void;
 }
 
 function signalStrength(level: number): { icon: keyof typeof Ionicons.glyphMap; label: string } {
@@ -56,6 +59,7 @@ export default function WifiCredentialsForm({
   onSubmit,
   loading = false,
   initialSsid = "",
+  onFieldFocus,
 }: WifiCredentialsFormProps) {
   const [ssid, setSsid] = useState(initialSsid);
   const [password, setPassword] = useState("");
@@ -247,6 +251,7 @@ export default function WifiCredentialsForm({
               placeholderTextColor={colors.mutedText}
               value={ssid}
               onChangeText={setSsid}
+              onFocus={onFieldFocus}
               autoCapitalize="none"
               autoCorrect={false}
               editable={!loading}
@@ -272,6 +277,7 @@ export default function WifiCredentialsForm({
               placeholderTextColor={colors.mutedText}
               value={password}
               onChangeText={setPassword}
+              onFocus={onFieldFocus}
               secureTextEntry={!showPassword}
               autoCapitalize="none"
               autoCorrect={false}

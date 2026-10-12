@@ -32,6 +32,22 @@ export interface ArisDiscoveredDevice {
   serviceUUIDs?: string[];
   isArisGatt: boolean;
   macAddress?: string;
+  /** How it was found. Wi-Fi entries can be used without pairing. */
+  transport?: "ble" | "wifi";
+  /** Reachable but rejecting us: the API token is missing or stale. */
+  requiresToken?: boolean;
+}
+
+/** Why a scan found nothing — shown in the UI instead of an empty list. */
+export interface ScanDiagnostics {
+  nativeBleAvailable: boolean;
+  permissionsGranted: boolean;
+  locationPermissionGranted: boolean;
+  adapterState: string;
+  bleScanStarted: boolean;
+  wifiSubnetScanned: string | null;
+  endpointsProbed: number;
+  notes: string[];
 }
 
 export interface ArisDeviceInfo {

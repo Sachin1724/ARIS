@@ -8,13 +8,20 @@ import {
   ActivityIndicator,
   RefreshControl,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import DeviceCard from "../../components/aris/device/DeviceCard";
 import ScanDevicesButton from "../../components/aris/device/ScanDevicesButton";
-import { scanForAris, ARIS_SERVICE_UUID } from "../../services/device/bleScanner";
+import {
+  scanForAris,
+  getScanDiagnostics,
+  ARIS_SERVICE_UUID,
+  type ScanDiagnostics,
+} from "../../services/device/bleScanner";
 import { deviceApi } from "../../services/device/deviceApi";
 import { ArisDiscoveredDevice } from "../../services/device/bleProtocol";
 import { useConnection } from "../../hooks/useConnection";
@@ -31,6 +38,7 @@ export default function DeviceScanScreen() {
   const [devices, setDevices] = useState<ArisDiscoveredDevice[]>([]);
   const [selectedDevice, setSelectedDevice] = useState<ArisDiscoveredDevice | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
+  const [diagnostics, setDiagnostics] = useState<ScanDiagnostics | null>(null);
 
   const [ipInput, setIpInput] = useState(customEndpoint || "192.168.31.46:8000");
   const [tokenInput, setTokenInput] = useState(deviceToken || "test123");
@@ -57,11 +65,13 @@ export default function DeviceScanScreen() {
         });
       },
       (err) => {
+        // Bluetooth problems no longer end the scan: the Wi-Fi sweep still runs,
+        // and that is the path that works without the pairing window open.
         setScanError(err);
-        // If it's the development build notice, continue scanning network endpoints
-        if (!err.toLowerCase().includes("development build")) {
-          setScanning(false);
-        }
+      },
+      {
+        savedEndpoint: customEndpoint || null,
+        token: deviceToken || tokenInput.trim() || null,
       }
     );
 
@@ -69,6 +79,7 @@ export default function DeviceScanScreen() {
 
     const timeout = setTimeout(() => {
       setScanning(false);
+      setDiagnostics(getScanDiagnostics());
       stopper();
     }, 12000);
 
@@ -76,7 +87,8 @@ export default function DeviceScanScreen() {
       clearTimeout(timeout);
       stopper();
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customEndpoint, deviceToken]);
 
   const startScan = useCallback(() => {
     setScanning(true);
@@ -179,10 +191,16 @@ export default function DeviceScanScreen() {
         </Pressable>
       </View>
 
+      <KeyboardAvoidingView
+        style={styles.scrollView}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         refreshControl={
           <RefreshControl
             refreshing={scanning}
@@ -193,6 +211,19 @@ export default function DeviceScanScreen() {
           />
         }
       >
+        {/* Pairing window hint: the board only advertises on demand */}
+        <View style={styles.serviceFilterCard}>
+          <View style={styles.serviceFilterHeader}>
+            <Ionicons name="radio-outline" size={16} color={colors.accent} />
+            <Text style={styles.serviceFilterTitle}>Before scanning over Bluetooth</Text>
+          </View>
+          <Text style={styles.serviceFilterDesc}>
+            Hold the D3 button on the UNO Q for about 3 seconds. It stays discoverable
+            for 3 minutes. If the board is already on your Wi-Fi, it is found below
+            without Bluetooth.
+          </Text>
+        </View>
+
         {/* GATT Service Filter Info */}
         <View style={styles.serviceFilterCard}>
           <View style={styles.serviceFilterHeader}>
@@ -272,6 +303,22 @@ export default function DeviceScanScreen() {
           {ipError && <Text style={styles.ipErrorText}>{ipError}</Text>}
         </View>
 
+        {!scanning && devices.length === 0 && diagnostics ? (
+          <View style={styles.serviceFilterCard}>
+            <View style={styles.serviceFilterHeader}>
+              <Ionicons name="pulse-outline" size={16} color={colors.accent} />
+              <Text style={styles.serviceFilterTitle}>Scan report</Text>
+            </View>
+            <Text style={styles.serviceFilterDesc}>
+              Bluetooth: {diagnostics.nativeBleAvailable ? diagnostics.adapterState : "not available in this build"}
+              {diagnostics.nativeBleAvailable && !diagnostics.permissionsGranted ? " (permission denied)" : ""}
+              {"\n"}Location permission: {diagnostics.locationPermissionGranted ? "granted" : "denied"}
+              {"\n"}Wi-Fi sweep: {diagnostics.wifiSubnetScanned ?? "no Wi-Fi address"} ({diagnostics.endpointsProbed} addresses)
+              {diagnostics.notes.length > 0 ? "\n" + diagnostics.notes.join("\n") : ""}
+            </Text>
+          </View>
+        ) : null}
+
         {/* Discovered Nodes Section */}
         <View style={styles.statusRow}>
           <Text style={styles.sectionTitle}>
@@ -319,6 +366,7 @@ export default function DeviceScanScreen() {
           title={devices.length > 0 ? "Scan Again" : "Scan for Devices"}
         />
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

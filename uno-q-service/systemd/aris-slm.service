@@ -1,16 +1,23 @@
 [Unit]
-Description=ARIS Local Small Language Model (Qwen 2.5 0.5B on Port 8089)
+Description=ARIS Local Edge SLM (Qwen 2.5 0.5B via llama.cpp, port 8089)
 After=network.target
 
 [Service]
 Type=simple
 User=arduino
-WorkingDirectory=/home/arduino/ArduinoApps/aeris
-Nice=-5
-CPUAffinity=0 1 2 3
-ExecStart=/usr/local/bin/llama-server -m /home/arduino/ArduinoApps/aeris/models/qwen2.5-0.5b-instruct-q4_k_m.gguf --port 8089 --host 127.0.0.1 -c 512 -b 256 -t 4 -tb 4 --temp 0.35
+WorkingDirectory=/home/arduino/aeris_slm
+# Paths must match what is actually installed on the board: the binary is built
+# in the user's llama.cpp tree, and the model lives beside it.
+ExecStart=/home/arduino/llama.cpp/build/bin/llama-server \
+  -m /home/arduino/aeris_slm/models/qwen2.5-0.5b-q4.gguf \
+  --host 127.0.0.1 --port 8089 -c 1024 -ngl 0 -t 3
+# The 1Hz telemetry API matters more than token throughput, so inference runs
+# at lower priority and leaves one of the four cores for it.
+Nice=3
 Restart=always
-RestartSec=3
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target

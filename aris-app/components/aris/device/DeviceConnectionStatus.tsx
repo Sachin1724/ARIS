@@ -45,7 +45,7 @@ export default function DeviceConnectionStatus({
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Firmware</Text>
           <Text style={styles.detailValue}>
-            {deviceInfo?.firmwareVersion || "v0.1.0-release"}
+            {deviceInfo?.firmwareVersion || "—"}
           </Text>
         </View>
 

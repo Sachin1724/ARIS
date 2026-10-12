@@ -1,0 +1,16 @@
+[Unit]
+Description=Watch for an ARIS safe-shutdown request
+# Lets an unprivileged component (the API, or the D3 button bridge) ask for a
+# clean poweroff by touching a file, instead of the SD card being corrupted by
+# someone pulling the plug.
+
+[Path]
+# Host-side components (the API runs as user arduino) use /run/aris.
+PathExists=/run/aris/poweroff.request
+# The sensor collector runs inside the Arduino App container and can only write
+# to its own bind-mounted app directory, so it signals there.
+PathExists=/home/arduino/ArduinoApps/aeris/python/aeris_power_request.json
+Unit=aris-poweroff.service
+
+[Install]
+WantedBy=multi-user.target

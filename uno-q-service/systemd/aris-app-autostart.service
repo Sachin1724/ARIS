@@ -1,0 +1,23 @@
+[Unit]
+Description=Start the aeris Arduino App (sensor collector) at boot
+# The Arduino App runs as a docker container created by arduino-app-cli, whose
+# restart policy is "no" — without this the collector never comes back after a
+# power cut and aeris_latest.json goes stale while the API keeps serving.
+After=docker.service arduino-app-cli.service network-online.target
+Wants=docker.service arduino-app-cli.service network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=arduino
+# "restart" starts a stopped app and recovers a half-created one, so it is safe
+# to run whether or not the container already exists.
+ExecStart=/usr/bin/arduino-app-cli app restart user:aeris
+# The app-cli daemon can still be settling right after boot.
+ExecStartPre=/bin/sleep 10
+TimeoutStartSec=300
+Restart=on-failure
+RestartSec=15
+
+[Install]
+WantedBy=multi-user.target

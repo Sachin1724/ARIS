@@ -6,18 +6,59 @@ import {
   Pressable,
   StyleSheet,
   Alert,
+  RefreshControl,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { ARIS_SERVICE_UUID, ARIS_CHARACTERISTICS } from "../../services/device/bleProtocol";
 import { deviceApi } from "../../services/device/deviceApi";
+import { useSystemHealth } from "../../hooks/useSystemHealth";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
+
+/** Values are rendered only when the board actually reported them. */
+const NO_VALUE = "—";
+
+function formatUptime(seconds: number | null): string {
+  if (seconds === null) return NO_VALUE;
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
+function formatAge(seconds: number | null): string {
+  if (seconds === null) return NO_VALUE;
+  if (seconds < 90) return `${Math.round(seconds)}s ago`;
+  return `${Math.round(seconds / 60)}m ago`;
+}
+
+function pct(value: number | null): string {
+  return value === null ? NO_VALUE : `${value}%`;
+}
+
+/** Warn before the board is in trouble, not after. */
+function usageTone(value: number | null): string {
+  if (value === null) return colors.secondaryText;
+  if (value >= 90) return colors.danger;
+  if (value >= 75) return colors.warning;
+  return colors.primaryText;
+}
+
+function tempTone(value: number | null): string {
+  if (value === null) return colors.secondaryText;
+  if (value >= 80) return colors.danger;
+  if (value >= 65) return colors.warning;
+  return colors.primaryText;
+}
 
 export default function DeviceDiagnosticsScreen() {
   const router = useRouter();
   const state = deviceApi.getState();
+  const { data, loading, error, stale, lastUpdated, refresh } = useSystemHealth();
 
   const handleDisconnect = () => {
     Alert.alert(
@@ -33,9 +74,18 @@ export default function DeviceDiagnosticsScreen() {
             router.replace("/(tabs)/home");
           },
         },
-      ]
+      ],
     );
   };
+
+  const row = (label: string, value: string, tone?: string) => (
+    <View style={styles.diagRow} key={label}>
+      <Text style={styles.diagLabel}>{label}</Text>
+      <Text style={[styles.diagValue, tone ? { color: tone } : null]}>{value}</Text>
+    </View>
+  );
+
+  const clients = data?.clients ?? null;
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
@@ -51,115 +101,210 @@ export default function DeviceDiagnosticsScreen() {
         </Pressable>
 
         <View style={styles.headerTitleGroup}>
-          <Text style={styles.headerTitle}>Hardware Diagnostics</Text>
+          <Text style={styles.headerTitle}>System Monitor</Text>
           <Text style={styles.headerSubtitle}>
-            GATT Contract & Telemetry State
+            {state.selectedDevice?.name || "Arduino UNO Q"}
           </Text>
         </View>
 
-        <View style={{ width: 38 }} />
+        <Pressable
+          style={styles.headerIconButton}
+          onPress={refresh}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Refresh system health"
+        >
+          <Ionicons name="refresh" size={18} color={colors.secondaryText} />
+        </Pressable>
       </View>
 
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={loading && data !== null}
+            onRefresh={refresh}
+            tintColor={colors.accent}
+            colors={[colors.accent]}
+            progressBackgroundColor={colors.surface}
+          />
+        }
       >
         <View style={styles.statusBanner}>
           <View style={styles.statusIconBox}>
-            <Ionicons name="hardware-chip-outline" size={22} color={colors.accent} />
+            <Ionicons
+              name={data ? "hardware-chip" : "cloud-offline-outline"}
+              size={22}
+              color={data ? colors.accent : colors.secondaryText}
+            />
           </View>
           <View style={styles.statusCol}>
             <Text style={styles.statusTitle}>
-              {state.deviceInfo?.deviceId || state.selectedDevice?.id || "ARIS-UNOQ-0082"}
+              {data ? "Board reachable" : error ? "Board unreachable" : "Reading board…"}
             </Text>
             <Text style={styles.statusSubtitle}>
-              Linux Debian 12 • BlueZ 5.66 • Bluetooth 5.1
+              {lastUpdated
+                ? `Updated ${lastUpdated.toLocaleTimeString()}`
+                : "No reading yet"}
             </Text>
           </View>
-          <View style={styles.liveChip}>
-            <Text style={styles.liveChipText}>Active</Text>
-          </View>
+          {loading && data === null ? (
+            <ActivityIndicator size="small" color={colors.accent} />
+          ) : stale ? (
+            <View style={styles.staleChip}>
+              <Text style={styles.staleChipText}>Stale</Text>
+            </View>
+          ) : null}
         </View>
 
+        {error ? (
+          <View style={styles.errorBox}>
+            <Ionicons name="warning-outline" size={16} color={colors.danger} />
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null}
+
+        {/* Compute */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <Ionicons name="terminal-outline" size={16} color={colors.primaryText} />
-            <Text style={styles.cardTitle}>UNO Q Linux Service Commands</Text>
+            <Ionicons name="speedometer-outline" size={16} color={colors.accent} />
+            <Text style={styles.cardTitle}>Compute</Text>
           </View>
-          <Text style={styles.commandDesc}>
-            Verify Bluetooth controller status on the UNO Q board terminal:
-          </Text>
-          <View style={styles.codeBlock}>
-            <Text style={styles.codeText}>$ bluetoothctl show</Text>
-            <Text style={styles.codeText}>$ systemctl status bluetooth --no-pager</Text>
-          </View>
-        </View>
-
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Ionicons name="bluetooth" size={16} color={colors.accent} />
-            <Text style={styles.cardTitle}>GATT Service Contract</Text>
-          </View>
-
-          <View style={styles.gattRow}>
-            <Text style={styles.gattLabel}>Service UUID</Text>
-            <Text style={styles.gattValue}>{ARIS_SERVICE_UUID}</Text>
-          </View>
-
+          {row(
+            `CPU load (${data?.cpu?.cores ?? NO_VALUE} cores)`,
+            data?.cpu?.load1 === null || data?.cpu?.load1 === undefined
+              ? NO_VALUE
+              : `${data.cpu.load1.toFixed(2)} · ${pct(data.cpu.load1_pct)}`,
+            usageTone(data?.cpu?.load1_pct ?? null),
+          )}
           <View style={styles.divider} />
-
-          {[
-            { name: "device_info", uuid: ARIS_CHARACTERISTICS.DEVICE_INFO, prop: "READ" },
-            { name: "pairing_challenge", uuid: ARIS_CHARACTERISTICS.PAIRING_CHALLENGE, prop: "READ / NOTIFY" },
-            { name: "pairing_response", uuid: ARIS_CHARACTERISTICS.PAIRING_RESPONSE, prop: "WRITE" },
-            { name: "wifi_config", uuid: ARIS_CHARACTERISTICS.WIFI_CONFIG, prop: "WRITE ENCRYPTED" },
-            { name: "setup_status", uuid: ARIS_CHARACTERISTICS.SETUP_STATUS, prop: "NOTIFY" },
-            { name: "network_info", uuid: ARIS_CHARACTERISTICS.NETWORK_INFO, prop: "READ" },
-          ].map((char, i, arr) => (
-            <React.Fragment key={char.name}>
-              <View style={styles.gattRow}>
-                <View>
-                  <Text style={styles.charName}>{char.name}</Text>
-                  <Text style={styles.charUuid}>{char.uuid}</Text>
-                </View>
-                <View style={styles.propBadge}><Text style={styles.propText}>{char.prop}</Text></View>
-              </View>
-              {i < arr.length - 1 && <View style={styles.divider} />}
-            </React.Fragment>
-          ))}
+          {row(
+            "Memory used",
+            data?.memory?.used_pct === null || data?.memory?.used_pct === undefined
+              ? NO_VALUE
+              : `${pct(data.memory.used_pct)} of ${data.memory.total_mb} MB`,
+            usageTone(data?.memory?.used_pct ?? null),
+          )}
+          <View style={styles.divider} />
+          {row(
+            "Disk used",
+            data?.disk?.used_pct === null || data?.disk?.used_pct === undefined
+              ? NO_VALUE
+              : `${pct(data.disk.used_pct)} · ${data.disk.free_gb} GB free`,
+            usageTone(data?.disk?.used_pct ?? null),
+          )}
+          <View style={styles.divider} />
+          {row(
+            "SoC temperature",
+            data?.temperature_c === null || data?.temperature_c === undefined
+              ? NO_VALUE
+              : `${data.temperature_c} °C`,
+            tempTone(data?.temperature_c ?? null),
+          )}
+          <View style={styles.divider} />
+          {row("Uptime", formatUptime(data?.uptime_s ?? null))}
         </View>
 
+        {/* Services */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <Ionicons name="pulse" size={16} color={colors.success} />
-            <Text style={styles.cardTitle}>Live Sensor Channel Telemetry</Text>
+            <Ionicons name="git-branch-outline" size={16} color={colors.accent} />
+            <Text style={styles.cardTitle}>Services</Text>
           </View>
+          {data?.services?.length ? (
+            data.services.map((service, index) => (
+              <React.Fragment key={service.unit}>
+                {index > 0 ? <View style={styles.divider} /> : null}
+                <View style={styles.diagRow}>
+                  <Text style={styles.diagLabel}>{service.unit}</Text>
+                  <View style={styles.serviceState}>
+                    <View
+                      style={[
+                        styles.stateDot,
+                        { backgroundColor: service.ok ? colors.success : colors.danger },
+                      ]}
+                    />
+                    <Text
+                      style={[
+                        styles.diagValue,
+                        { color: service.ok ? colors.primaryText : colors.danger },
+                      ]}
+                    >
+                      {service.state}
+                    </Text>
+                  </View>
+                </View>
+              </React.Fragment>
+            ))
+          ) : (
+            <Text style={styles.emptyText}>No service states reported.</Text>
+          )}
+        </View>
 
-          {[
-            { label: "SPS30 Optical Channel Cleanliness", value: "99.2% (Nominal)" },
-            { label: "SPS30 Internal Flow Rate", value: "0.28 L/min" },
-            { label: "SHT4x Digital I2C Bus", value: "0x44 (ACK OK)" },
-            { label: "MQ-135 Air Quality Sensor ADC", value: "422 ADC (Raw)" },
-            { label: "MG-811 CO2 Solid Electrolyte", value: "0.342 V (Raw)" },
-          ].map((row, i, arr) => (
-            <React.Fragment key={row.label}>
-              <View style={styles.diagRow}>
-                <Text style={styles.diagLabel}>{row.label}</Text>
-                <Text style={styles.diagValue}>{row.value}</Text>
-              </View>
-              {i < arr.length - 1 && <View style={styles.divider} />}
-            </React.Fragment>
-          ))}
+        {/* Data pipeline */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="pulse-outline" size={16} color={colors.accent} />
+            <Text style={styles.cardTitle}>Data pipeline</Text>
+          </View>
+          {row(
+            "Sensor collector",
+            data?.collector
+              ? `${formatAge(data.collector.age_s)}${data.collector.ok ? "" : " (stalled)"}`
+              : NO_VALUE,
+            data?.collector && !data.collector.ok ? colors.danger : undefined,
+          )}
+          <View style={styles.divider} />
+          {row(
+            "Edge language model",
+            data?.slm ? (data.slm.reachable ? `Running on :${data.slm.port}` : "Not reachable") : NO_VALUE,
+            data?.slm && !data.slm.reachable ? colors.warning : undefined,
+          )}
+          <View style={styles.divider} />
+          {row(
+            "Bluetooth pairing window",
+            data?.ble
+              ? data.ble.advertising
+                ? `Open for ${Math.round(data.ble.pairing_window_s)}s`
+                : "Closed — hold D3 for 3s"
+              : NO_VALUE,
+            data?.ble?.advertising ? colors.accent : undefined,
+          )}
+        </View>
+
+        {/* Connected devices */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="phone-portrait-outline" size={16} color={colors.accent} />
+            <Text style={styles.cardTitle}>Connected devices</Text>
+          </View>
+          {row(
+            "Devices",
+            clients ? `${clients.devices} (${clients.sockets} live streams)` : NO_VALUE,
+          )}
+          {clients?.connections?.length
+            ? clients.connections.map((connection) => (
+                <React.Fragment key={`${connection.host}:${connection.port}`}>
+                  <View style={styles.divider} />
+                  <View style={styles.diagRow}>
+                    <Text style={styles.diagLabel}>{connection.host}</Text>
+                    <Text style={styles.diagValue}>
+                      {formatUptime(Math.round(connection.connected_s))}
+                    </Text>
+                  </View>
+                </React.Fragment>
+              ))
+            : null}
         </View>
 
         <Pressable
           style={styles.disconnectButton}
           onPress={handleDisconnect}
           accessibilityRole="button"
-          accessibilityLabel="Disconnect device"
+          accessibilityLabel="Forget device and reset pairing"
         >
-          <Ionicons name="unlink-outline" size={18} color={colors.danger} />
           <Text style={styles.disconnectText}>Forget Device & Reset Pairing</Text>
         </Pressable>
       </ScrollView>
@@ -215,6 +360,7 @@ const styles = StyleSheet.create({
   statusBanner: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 12,
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.borderLight,
@@ -228,141 +374,117 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 12,
   },
   statusCol: {
     flex: 1,
   },
   statusTitle: {
     fontFamily: typography.fontFamilies.semiBold,
-    fontSize: 15,
+    fontSize: 14,
     color: colors.primaryText,
   },
   statusSubtitle: {
     fontFamily: typography.fontFamilies.regular,
-    fontSize: 12,
-    color: colors.secondaryText,
-    marginTop: 1,
-  },
-  liveChip: {
-    backgroundColor: "rgba(16, 185, 129, 0.15)",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
-  },
-  liveChipText: {
-    fontFamily: typography.fontFamilies.semiBold,
     fontSize: 11,
-    color: colors.success,
+    color: colors.secondaryText,
+    marginTop: 2,
+  },
+  staleChip: {
+    backgroundColor: "rgba(245, 158, 11, 0.15)",
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  staleChipText: {
+    fontFamily: typography.fontFamilies.medium,
+    fontSize: 10,
+    color: colors.warning,
+  },
+  errorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(239, 68, 68, 0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(239, 68, 68, 0.3)",
+    borderRadius: 8,
+    padding: 12,
+  },
+  errorText: {
+    flex: 1,
+    fontFamily: typography.fontFamilies.regular,
+    fontSize: 12,
+    color: colors.danger,
   },
   card: {
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.borderLight,
     borderRadius: 10,
-    padding: 16,
-    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
   cardHeader: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+    marginBottom: 6,
   },
   cardTitle: {
-    fontFamily: typography.fontFamilies.semiBold,
-    fontSize: 14,
-    color: colors.primaryText,
-  },
-  commandDesc: {
-    fontFamily: typography.fontFamilies.regular,
-    fontSize: 12,
-    color: colors.secondaryText,
-  },
-  codeBlock: {
-    backgroundColor: "#0F172A",
-    borderRadius: 6,
-    padding: 12,
-    gap: 4,
-  },
-  codeText: {
-    fontFamily: "monospace",
-    fontSize: 12,
-    color: colors.info,
-  },
-  gattRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  gattLabel: {
-    fontFamily: typography.fontFamilies.medium,
-    fontSize: 12,
-    color: colors.primaryText,
-  },
-  gattValue: {
-    fontFamily: "monospace",
-    fontSize: 10,
-    color: colors.accent,
-  },
-  charName: {
     fontFamily: typography.fontFamilies.semiBold,
     fontSize: 13,
     color: colors.primaryText,
   },
-  charUuid: {
-    fontFamily: "monospace",
-    fontSize: 10,
-    color: colors.secondaryText,
-    marginTop: 2,
-  },
-  propBadge: {
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  propText: {
-    fontFamily: typography.fontFamilies.semiBold,
-    fontSize: 9,
-    color: colors.secondaryText,
-  },
   diagRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 9,
+    gap: 12,
   },
   diagLabel: {
+    flex: 1,
     fontFamily: typography.fontFamilies.regular,
     fontSize: 12,
     color: colors.secondaryText,
-    flex: 1,
   },
   diagValue: {
-    fontFamily: typography.fontFamilies.semiBold,
+    fontFamily: typography.fontFamilies.medium,
     fontSize: 12,
     color: colors.primaryText,
   },
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
-  },
-  disconnectButton: {
+  serviceState: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: "rgba(239, 68, 68, 0.15)",
+    gap: 6,
+  },
+  stateDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  emptyText: {
+    fontFamily: typography.fontFamilies.regular,
+    fontSize: 12,
+    color: colors.mutedText,
+    paddingVertical: 8,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.borderLight,
+  },
+  disconnectButton: {
     borderWidth: 1,
-    borderColor: "rgba(239, 68, 68, 0.3)",
-    borderRadius: 8,
-    height: 48,
-    marginTop: 6,
+    borderColor: "rgba(239, 68, 68, 0.4)",
+    backgroundColor: "rgba(239, 68, 68, 0.1)",
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: "center",
+    marginTop: 4,
   },
   disconnectText: {
     fontFamily: typography.fontFamilies.semiBold,
-    fontSize: 14,
+    fontSize: 13,
     color: colors.danger,
   },
 });

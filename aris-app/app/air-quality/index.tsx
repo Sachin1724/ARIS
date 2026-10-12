@@ -51,6 +51,7 @@ export default function AirQualityScreen() {
   // Null = no device; numeric = real reading
   const pm25Val = sensors.pm25?.value ?? null;
   const pm10Val = sensors.pm10?.value ?? null;
+  const gp2yVolts = sensors.gp2y_voltage_v?.value ?? null;
   const pm10SubVal = sensors.pm1_0?.value ?? null;
   const pm40Val = sensors.pm4_0?.value ?? null;
   const nc05Val = sensors.nc0_5?.value ?? null;
@@ -178,14 +179,12 @@ export default function AirQualityScreen() {
         gaugeRatio: pm10Val != null ? Math.min(1.0, Math.max(0.05, pm10Val / 150.0)) : 0.0,
         peakVal: pm10Val != null ? `${Math.round(pm10Val)} µg/m³` : "--",
         peakTime: hasData ? (timeRange === "Today" ? "Latest" : "This week") : "--",
-        sensorDetailTitle: "Sensirion SPS30 Coarse Channel Telemetry",
+        sensorDetailTitle: "Optical dust channel (GP2Y, experimental proxy)",
         tableRows: [
-          { key: "PM10 Coarse Concentration", val: pm10Val != null ? `${pm10Val.toFixed(1)} µg/m³` : "--", isHighlight: true },
-          { key: "PM4.0 Intermediate", val: pm40Val != null ? `${pm40Val.toFixed(1)} µg/m³` : "--" },
-          { key: "Particle Number NC10.0", val: nc25Val != null ? `${nc25Val.toFixed(1)} #/cm³` : "--" },
-          { key: "Optical Channel Cleanliness", val: hasData ? "Operational" : "--" },
-          { key: "Laser Diode Status", val: hasData ? "Active" : "--" },
-          { key: "Flow Velocity", val: hasData ? "0.28 L/min (Nominal)" : "--" },
+          { key: "PM10 proxy", val: pm10Val != null ? `${pm10Val.toFixed(1)} µg/m³` : "--", isHighlight: true },
+          { key: "PM2.5 proxy", val: pm25Val != null ? `${pm25Val.toFixed(1)} µg/m³` : "--" },
+          { key: "Sensor voltage", val: gp2yVolts != null ? `${gp2yVolts.toFixed(3)} V` : "--" },
+          { key: "Calibration", val: "Uncalibrated optical proxy" },
         ],
       },
       CO2: {

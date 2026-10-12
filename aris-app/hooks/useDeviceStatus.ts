@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { AppState } from "react-native";
 import type { DeviceStatus } from "../types/api";
 import { apiClient, ApiClientError } from "../services/api-client";
 import { wsManager } from "../services/websocket-manager";
@@ -75,10 +76,21 @@ export function useDeviceStatus(): UseDeviceStatusResult {
       }
     }, 15_000);
 
+    // Android freezes timers and leaves sockets half-open in the background,
+    // so on resume pull fresh status and revive the socket if it went silent.
+    const appStateSub = AppState.addEventListener("change", (next) => {
+      if (next !== "active" || !mountedRef.current) return;
+      if (apiClient.isConfigured) {
+        fetchStatus();
+        wsManager.ensureHealthy();
+      }
+    });
+
     return () => {
       mountedRef.current = false;
       unsubscribe();
       clearInterval(pollInterval);
+      appStateSub.remove();
     };
   }, [fetchStatus]);
 

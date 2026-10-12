@@ -2,6 +2,7 @@ import type {
   HealthResponse,
   DeviceInfo,
   DeviceStatus,
+  SystemHealth,
   ForecastResponse,
   HistoryResponse,
   AssistantQuery,
@@ -78,6 +79,11 @@ class ApiClient {
 
   async health(): Promise<HealthResponse> {
     return this.request<HealthResponse>("/api/v1/health");
+  }
+
+  /** Board health for the system monitor. */
+  async system(): Promise<SystemHealth> {
+    return this.request<SystemHealth>("/api/v1/system");
   }
 
   async device(): Promise<DeviceInfo> {
