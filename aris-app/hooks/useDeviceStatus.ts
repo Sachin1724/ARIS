@@ -2,14 +2,12 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import type { DeviceStatus } from "../types/api";
 import { apiClient, ApiClientError } from "../services/api-client";
 import { wsManager } from "../services/websocket-manager";
-import { mockStatus } from "../services/mock-data";
 
 interface UseDeviceStatusResult {
   status: DeviceStatus | null;
   loading: boolean;
   error: string | null;
   stale: boolean;
-  isDemo: boolean;
   lastUpdated: Date | null;
   refresh: () => Promise<void>;
 }
@@ -19,13 +17,12 @@ export function useDeviceStatus(): UseDeviceStatusResult {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const isDemo = !apiClient.isConfigured;
   const mountedRef = useRef(true);
 
   const fetchStatus = useCallback(async () => {
     if (!apiClient.isConfigured) {
-      setStatus(mockStatus);
-      setLastUpdated(new Date());
+      setStatus(null);
+      setLastUpdated(null);
       setLoading(false);
       return;
     }
@@ -71,14 +68,22 @@ export function useDeviceStatus(): UseDeviceStatusResult {
       }
     });
 
+    // ponytail: HTTP poll every 15s as fallback when WS drops
+    const pollInterval = setInterval(() => {
+      if (apiClient.isConfigured && mountedRef.current) {
+        fetchStatus();
+      }
+    }, 15_000);
+
     return () => {
       mountedRef.current = false;
       unsubscribe();
+      clearInterval(pollInterval);
     };
   }, [fetchStatus]);
 
   const stale =
     lastUpdated !== null && Date.now() - lastUpdated.getTime() > 60000;
 
-  return { status, loading, error, stale, isDemo, lastUpdated, refresh: fetchStatus };
+  return { status, loading, error, stale, lastUpdated, refresh: fetchStatus };
 }

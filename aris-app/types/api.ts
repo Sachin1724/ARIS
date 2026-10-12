@@ -62,11 +62,25 @@ export interface HistoryResponse {
   to: string;
 }
 
+export interface ArisForecast {
+  predicted_temperature_c: number;
+  predicted_humidity_pct: number;
+  current_temperature_c: number;
+  current_humidity_pct: number;
+  temp_change: number;
+  humidity_change: number;
+  forecast_horizon: string;
+  model: string;
+  training_samples: number;
+  generated_at: string;
+}
+
 export interface ForecastResponse {
   metric: string;
   points: ForecastPoint[];
   model_version: string;
   generated_at: string;
+  aris_forecast?: ArisForecast;
 }
 
 export interface AssistantQuery {

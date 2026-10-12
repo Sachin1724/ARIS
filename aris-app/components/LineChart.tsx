@@ -121,7 +121,7 @@ export default function LineChart({ points, width = 320, height = 200 }: LineCha
           <Polyline
             points={polylinePoints(observed)}
             fill="none"
-            stroke={colors.lavender}
+            stroke={colors.accent}
             strokeWidth={2}
             strokeLinejoin="round"
           />
@@ -131,7 +131,7 @@ export default function LineChart({ points, width = 320, height = 200 }: LineCha
           <Polyline
             points={polylinePoints(predicted)}
             fill="none"
-            stroke={colors.sky}
+            stroke={colors.info}
             strokeWidth={2}
             strokeDasharray="4,4"
             strokeLinejoin="round"
@@ -146,7 +146,7 @@ export default function LineChart({ points, width = 320, height = 200 }: LineCha
               cx={x(idx)}
               cy={y(last.value!)}
               r={4}
-              fill={colors.lavender}
+              fill={colors.accent}
             />
           );
         })()}

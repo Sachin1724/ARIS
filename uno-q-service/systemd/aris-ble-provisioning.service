@@ -1,0 +1,17 @@
+[Unit]
+Description=ARIS BLE GATT Provisioning Daemon for Arduino UNO Q
+After=bluetooth.target network.target
+Requires=bluetooth.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/aris/uno-q-service
+ExecStart=/usr/bin/python3 /opt/aris/uno-q-service/gatt_server.py
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

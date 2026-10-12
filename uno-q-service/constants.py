@@ -1,0 +1,23 @@
+"""
+ARIS BLE GATT Protocol Definitions for Arduino UNO Q
+Debian Linux / BlueZ implementation.
+"""
+
+# ARIS Primary GATT Service UUID
+ARIS_SERVICE_UUID = "8f4c0001-6a2b-4b6a-9e14-8d6c3b7a2f00"
+
+# GATT Characteristic UUIDs
+CHAR_DEVICE_INFO_UUID       = "8f4c0002-6a2b-4b6a-9e14-8d6c3b7a2f00"
+CHAR_PAIRING_CHALLENGE_UUID  = "8f4c0003-6a2b-4b6a-9e14-8d6c3b7a2f00"
+CHAR_PAIRING_RESPONSE_UUID   = "8f4c0004-6a2b-4b6a-9e14-8d6c3b7a2f00"
+CHAR_WIFI_CONFIG_UUID        = "8f4c0005-6a2b-4b6a-9e14-8d6c3b7a2f00"
+CHAR_SETUP_STATUS_UUID       = "8f4c0006-6a2b-4b6a-9e14-8d6c3b7a2f00"
+CHAR_NETWORK_INFO_UUID       = "8f4c0007-6a2b-4b6a-9e14-8d6c3b7a2f00"
+
+# Default hardware specifications
+DEFAULT_DEVICE_ID = "UNOQ-8F4C-0082"
+DEFAULT_DEVICE_NAME = "ARIS UNO Q (8F4C)"
+DEFAULT_FIRMWARE_VERSION = "0.1.0-release"
+DEFAULT_PROTOCOL_VERSION = "1.0.0"
+FASTAPI_PORT = 8000
+MDNS_HOSTNAME = "aris-unoq.local"

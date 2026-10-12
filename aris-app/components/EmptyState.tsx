@@ -1,5 +1,5 @@
 import { View, Text, Pressable } from "react-native";
-import Mascot from "./Mascot";
+import { Mascot } from "page-mascot";
 
 interface EmptyStateProps {
   title: string;
@@ -11,7 +11,12 @@ interface EmptyStateProps {
 export default function EmptyState({ title, message, action, onAction }: EmptyStateProps) {
   return (
     <View className="flex-1 items-center justify-center py-12 px-6">
-      <Mascot state="data_uncertain" size="medium" />
+      <Mascot
+        directions="/mascots/radio-directions.webp"
+        reactions="/mascots/radio-reactions.webp"
+        state="data_uncertain"
+        size="medium"
+      />
       <Text
         className="text-ink text-base text-center mt-4"
         style={{ fontFamily: "Poppins_600SemiBold" }}

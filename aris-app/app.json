@@ -5,8 +5,13 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "scheme": "aris",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0D110E"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.aris.app"
@@ -14,21 +19,54 @@
     "android": {
       "package": "com.aris.app",
       "adaptiveIcon": {
-        "backgroundColor": "#FBF8FF",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
-      }
+        "backgroundColor": "#0D110E",
+        "foregroundImage": "./assets/android-icon-foreground.png"
+      },
+      "permissions": [
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.BLUETOOTH_SCAN",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",
-      "bundler": "metro"
+      "bundler": "metro",
+      "name": "ARIS Environmental Companion"
     },
     "plugins": [
       "expo-router",
       "expo-font",
       "expo-splash-screen",
-      "expo-status-bar"
-    ]
+      "expo-status-bar",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow ARIS to access your microphone for voice queries.",
+          "speechRecognitionPermission": "Allow ARIS to transcribe your speech into environmental queries."
+        }
+      ],
+      [
+        "react-native-ble-plx",
+        {
+          "isBackgroundEnabled": false,
+          "modes": [
+            "peripheral",
+            "central"
+          ],
+          "bluetoothAlwaysPermission": "Allow ARIS to connect to your Arduino UNO Q environmental hub."
+        }
+      ],
+      "react-native-wifi-reborn"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "dfc64b61-ece7-430b-a176-30610f8304c8"
+      }
+    },
+    "owner": "sachinmallick"
   }
 }

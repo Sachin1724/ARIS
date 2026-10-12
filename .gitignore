@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Android / Mobile Builds & Binaries (Prevent GitHub 100MB rejection)
+*.apk
+*.aab
+*.dex
+android/app/build/
+android/.gradle/
+android/build/
+.gradle/
+build/
+
+# Expo & React Native
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+.metro-health-check*
+
+# Environment and Keys
+.env
+.env*.local
+*.keystore
+*.jks
+*.key
+*.pem
+
+# Logs & Temporary files
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+.claude/
+.system_generated/
+
+# OS artifacts
+.DS_Store
+Thumbs.db

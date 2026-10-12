@@ -1,13 +1,11 @@
 import { useState, useCallback } from "react";
 import type { ForecastResponse } from "../types/api";
 import { apiClient, ApiClientError } from "../services/api-client";
-import { mockForecast } from "../services/mock-data";
 
 interface UseForecastResult {
   data: ForecastResponse | null;
   loading: boolean;
   error: string | null;
-  isDemo: boolean;
   fetch: (metric?: string) => Promise<void>;
 }
 
@@ -15,14 +13,13 @@ export function useForecast(): UseForecastResult {
   const [data, setData] = useState<ForecastResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const isDemo = !apiClient.isConfigured;
 
   const fetchForecast = useCallback(async (metric?: string) => {
     setLoading(true);
     setError(null);
 
     if (!apiClient.isConfigured) {
-      setData(mockForecast);
+      setData(null);
       setLoading(false);
       return;
     }
@@ -39,5 +36,5 @@ export function useForecast(): UseForecastResult {
     }
   }, []);
 
-  return { data, loading, error, isDemo, fetch: fetchForecast };
+  return { data, loading, error, fetch: fetchForecast };
 }

@@ -13,14 +13,15 @@ import {
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { GluestackUIProvider } from "@gluestack-ui/themed";
-import { View, Text } from "react-native";
-import { colors } from "../constants/tokens";
+import { LogBox } from "react-native";
+import { colors } from "../theme/colors";
+import { PreferencesProvider } from "../context/PreferencesContext";
 import "../global.css";
 
-SplashScreen.preventAutoHideAsync();
+LogBox.ignoreLogs(["SafeAreaView has been deprecated", "Support for defaultProps"]);
 
 export default function RootLayout() {
-  const [fontsLoaded, fontError] = useFonts({
+  const [fontsLoaded] = useFonts({
     Poppins_600SemiBold,
     Poppins_700Bold,
     Inter_400Regular,
@@ -29,53 +30,73 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded, fontError]);
-
-  if (!fontsLoaded && !fontError) {
-    return null;
-  }
-
-  if (fontError) {
-    return (
-      <View className="flex-1 items-center justify-center bg-background">
-        <Text className="font-body text-ink">Failed to load fonts</Text>
-      </View>
-    );
-  }
+    SplashScreen.hideAsync().catch(() => {});
+  }, [fontsLoaded]);
 
   return (
-    <GluestackUIProvider>
-      <Stack
+    <PreferencesProvider>
+      <GluestackUIProvider>
+        <Stack
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: colors.background },
-          headerTintColor: colors.ink,
+          headerTintColor: colors.primaryText,
           headerStyle: { backgroundColor: colors.background },
-          headerTitleStyle: { fontFamily: "Poppins_600SemiBold", color: colors.ink },
+          headerTitleStyle: { fontFamily: "Poppins_600SemiBold", color: colors.primaryText },
         }}
       >
         <Stack.Screen name="(tabs)" />
         <Stack.Screen
           name="air-quality/index"
-          options={{ headerShown: true, title: "Air Quality" }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="ask-aris/index"
-          options={{ headerShown: true, title: "Ask ARIS" }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="device/index"
-          options={{ headerShown: true, title: "Connect Device" }}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="device/scan"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="device/pair"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="device/wifi-setup"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="device/connecting"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="device/diagnostics"
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="settings/index"
-          options={{ headerShown: true, title: "Settings" }}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="welcome/index"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="privacy-policy"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="terms"
+          options={{ headerShown: false }}
         />
       </Stack>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
     </GluestackUIProvider>
+  </PreferencesProvider>
   );
 }

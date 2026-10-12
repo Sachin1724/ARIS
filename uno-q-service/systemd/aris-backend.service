@@ -1,0 +1,16 @@
+[Unit]
+Description=ARIS FastAPI Backend & Sensor Telemetry Hub
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/aris/uno-q-service
+ExecStart=/usr/bin/python3 -m uvicorn fastapi_app:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,13 +1,11 @@
 import { useState, useCallback } from "react";
 import type { AssistantResponse } from "../types/api";
 import { apiClient, ApiClientError } from "../services/api-client";
-import { mockAssistantResponse } from "../services/mock-data";
 
 interface UseAssistantResult {
   response: AssistantResponse | null;
   loading: boolean;
   error: string | null;
-  isDemo: boolean;
   ask: (question: string) => Promise<void>;
 }
 
@@ -15,14 +13,13 @@ export function useAssistant(): UseAssistantResult {
   const [response, setResponse] = useState<AssistantResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const isDemo = !apiClient.isConfigured;
 
   const ask = useCallback(async (question: string) => {
     setLoading(true);
     setError(null);
 
     if (!apiClient.isConfigured) {
-      setResponse(mockAssistantResponse(question));
+      setError("Connect your Arduino UNO Q to query live sensor telemetry.");
       setLoading(false);
       return;
     }
@@ -39,5 +36,5 @@ export function useAssistant(): UseAssistantResult {
     }
   }, []);
 
-  return { response, loading, error, isDemo, ask };
+  return { response, loading, error, ask };
 }

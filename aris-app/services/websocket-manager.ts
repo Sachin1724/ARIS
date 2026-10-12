@@ -10,14 +10,40 @@ const BACKOFF_FACTOR = 2;
 class WebSocketManager {
   private ws: WebSocket | null = null;
   private url: string | null = null;
+  private authToken: string | null = null;
   private listeners = new Set<Listener>();
   private statusListeners = new Set<StatusListener>();
   private retryDelay = INITIAL_RETRY_DELAY;
   private retryTimeout: ReturnType<typeof setTimeout> | null = null;
   private intentionalClose = false;
 
-  configure(host: string, port = 8000) {
-    this.url = `ws://${host}:${port}/ws/live`;
+  configure(hostOrUrl: string, port = 8000, token?: string) {
+    if (token) this.authToken = token;
+    const trimmed = hostOrUrl.trim();
+    if (trimmed.startsWith("https://")) {
+      this.url = trimmed.replace(/^https:\/\//i, "wss://").replace(/\/+$/, "") + "/ws/live";
+    } else if (trimmed.startsWith("http://")) {
+      this.url = trimmed.replace(/^http:\/\//i, "ws://").replace(/\/+$/, "") + "/ws/live";
+    } else if (trimmed.startsWith("wss://") || trimmed.startsWith("ws://")) {
+      this.url = trimmed.replace(/\/+$/, "");
+      if (!this.url.endsWith("/ws/live")) {
+        this.url += "/ws/live";
+      }
+    } else if (trimmed.includes(":")) {
+      this.url = `ws://${trimmed}/ws/live`;
+    } else {
+      this.url = `ws://${trimmed}:${port}/ws/live`;
+    }
+  }
+
+  setToken(token: string) {
+    this.authToken = token;
+  }
+
+  unconfigure() {
+    this.disconnect();
+    this.url = null;
+    this.authToken = null;
   }
 
   connect() {
@@ -28,7 +54,8 @@ class WebSocketManager {
     this.notifyStatus("connecting");
 
     try {
-      this.ws = new WebSocket(this.url);
+      const wsUrl = this.authToken ? `${this.url}?token=${this.authToken}` : this.url;
+      this.ws = new WebSocket(wsUrl);
     } catch {
       this.notifyStatus("error");
       this.scheduleRetry();
