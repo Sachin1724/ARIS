@@ -1,7 +1,5 @@
 # Chat Enhancements: Generation Latency Timer, Local History, & Keyboard Auto-Scroll
 
-> **For Claude / Antigravity:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Enhance the ARIS assistant chat interface by adding a live and completed response generation duration timer, persisting message history locally across app restarts, and smoothly pulling up chat messages when the user focuses the input or types.
 
 **Architecture:**
